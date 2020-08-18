@@ -72,6 +72,7 @@ char          inputBuffer[SPRINTF_BUFFER_SIZE];                               //
 MCP7940_Class MCP7940;
 DateTime now;
 DateTime then;
+TimeSpan timeChange(0);
 
 TTSi7006 si7006 = TTSi7006(true);
 
@@ -197,33 +198,40 @@ void setShortPress() {
     switch(setTimeIndex) {
       case 1:
         Serial.println("Set Hour");
+        timeChange = TimeSpan(0,1,0,0);
         break;
       case 2:
         Serial.println("Set Minute");
+        timeChange = TimeSpan(0,0,1,0);
         break;
       case 3:
         Serial.println("Set Second");
+        timeChange = TimeSpan(0,0,0,1);
         break;
       case 4:
         Serial.println("Set Month");
         break;
       case 5:
         Serial.println("Set Day");
+        timeChange = TimeSpan(1,0,0,0);
         break;
       case 6:
         Serial.println("Set Year");
         break;
-      
+      case 7:
+        Serial.println("Finished Setting");
+        setTimeIndex = 0;
+        break;
     }
 
   }
-  if(setTimeIndex > 6)
-    setTimeIndex = 0;
 }
 
 void setLongPress() {
   if(setTimeIndex == 0)
     setTimeIndex = 1;
+    Serial.println("Set Hour");
+    timeChange = TimeSpan(0,1,0,0);
   else
   setTimeIndex = 0;
 }
