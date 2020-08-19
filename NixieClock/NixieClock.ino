@@ -19,6 +19,7 @@
 #define SW_MODE_PIN       9
 #define ATHRESH_PIN       3
 #define SHORT_PRESS_TIME  500 //ms
+#define UPDOWN_COOLDOWN   200 //ms
 #define CLAP_MIN_TIME     200 //ms
 #define CLAP_MAX_TIME     1000 //ms
 #define SET_TIMEOUT       30000 // 30s timeout if no activity
@@ -133,10 +134,7 @@ void loop() {
   currentStateSET = digitalRead(SW_SET_PIN);
   currentStateMODE = digitalRead(SW_MODE_PIN);
   currentStateATHRESH = digitalRead(ATHRESH_PIN);
-  if(digitalRead(SW_UP_PIN))
-    Serial.println("UP");
-  if(digitalRead(SW_DOWN_PIN))
-    Serial.println("DOWN");
+  
 
   //SET Button - Long or short press
   if(lastStateSET == LOW && currentStateSET == HIGH)        // button is pressed
@@ -146,10 +144,10 @@ void loop() {
 
     long pressDuration = releasedTimeSET - pressedTimeSET;
 
-    if( pressDuration < SHORT_PRESS_TIME )
-      Serial.println("SET - SHORT PRESS");
+    if( pressDuration < SHORT_PRESS_TIME ) 
+      setShortPress();//Serial.println("SET - SHORT PRESS");
     else
-      Serial.println("SET - LONG PRESS");
+      setLongPress();//Serial.println("SET - LONG PRESS");
   }
 
   if(lastStateMODE == LOW && currentStateMODE == HIGH)    // button is pressed
@@ -176,11 +174,35 @@ void loop() {
 
     lastClap = currentClap;
   }
+  if(setTimeIndex != 0) {
+    if(digitalRead(SW_UP_PIN)) {
+      if( setTimeIndex == 4 )
+        now.incMonth();
+      else if( setTimeIndex == 6 )
+        now.incYear();
+      else
+        now = now + timeChange;
+      printTime(); 
+      delay(UPDOWN_COOLDOWN);
+    } else if(digitalRead(SW_DOWN_PIN)) {
+      if( setTimeIndex == 4 )
+        now.decMonth();
+      else if( setTimeIndex == 6 )
+        now.decYear();
+      else
+        now = now - timeChange;
+      printTime(); 
+      delay(UPDOWN_COOLDOWN);
+    }
 
-  now = MCP7940.now();
-  if(now.second() != then.second()) {
-    then = now;
-    printTime();                                            // Display the current date/time    //
+    
+  } else {
+
+    now = MCP7940.now();
+    if(now.second() != then.second()) {
+      then = now;
+      printTime();                                            // Display the current date/time    //
+    }
   }
 
 
@@ -221,6 +243,7 @@ void setShortPress() {
       case 7:
         Serial.println("Finished Setting");
         setTimeIndex = 0;
+        MCP7940.adjust(now);
         break;
     }
 
@@ -228,12 +251,14 @@ void setShortPress() {
 }
 
 void setLongPress() {
-  if(setTimeIndex == 0)
+  if(setTimeIndex == 0) {
     setTimeIndex = 1;
     Serial.println("Set Hour");
     timeChange = TimeSpan(0,1,0,0);
-  else
-  setTimeIndex = 0;
+  } else {
+    setTimeIndex = 0;
+    MCP7940.adjust(now);
+  }
 }
 
 void modePress() {
