@@ -1,3 +1,13 @@
+
+/*
+ * Nixie Clock Project
+ * Colin Fraser
+ * August 21, 2020
+ * 
+ * Notes: Pin 0/1 were a bad choice since they are shared by usart. Can't use serial if writing to R1/R2
+ */
+
+
 #include <TTSi7006.h>
 #include <FastLED.h>
 #include <MCP7940.h>
@@ -81,7 +91,7 @@ TTSi7006 si7006 = TTSi7006(true);
 
 void setup() {
   // put your setup code here, to run once:
-  Serial.begin(BAUD_RATE);
+  //Serial.begin(BAUD_RATE); //Using this will make right board (Seconds) stop working
   pinMode(SW_UP_PIN, INPUT);
   pinMode(SW_DOWN_PIN, INPUT);
   pinMode(SW_SET_PIN, INPUT);
@@ -120,7 +130,7 @@ void setup() {
   Serial.println(si7006.isConnected() ? "Yes" : "No");
 
   FastLED.addLeds<LED_TYPE, DIN_L1_PIN, COLOR_ORDER>(leds[DIN_L1], NUM_LEDS);
-  FastLED.addLeds<LED_TYPE, DIN_L2_PIN, COLOR_ORDER>(leds[DIN_L1], NUM_LEDS);
+  FastLED.addLeds<LED_TYPE, DIN_L2_PIN, COLOR_ORDER>(leds[DIN_L2], NUM_LEDS);
   FastLED.addLeds<LED_TYPE, DIN1_PIN, COLOR_ORDER>(leds[DIN1], NUM_LEDS);
   FastLED.addLeds<LED_TYPE, DIN2_PIN, COLOR_ORDER>(leds[DIN2], NUM_LEDS);
   FastLED.addLeds<LED_TYPE, DIN_R1_PIN, COLOR_ORDER>(leds[DIN_R1], NUM_LEDS);
@@ -203,8 +213,13 @@ void loop() {
       then = now;
       printTime();                                            // Display the current date/time    //
       FastLED.clear();
-      leds[DIN1][now.second() % 10] = CRGB(222,52,16);
+      leds[DIN1][now.second() / 10] = CRGB(240,52,16);
       leds[DIN2][now.second() % 10] = CRGB(225,79,21);
+      leds[DIN_R1][now.second() / 10] = CRGB(240,52,16);
+      leds[DIN_R2][now.second() % 10] = CRGB(240,52,16);
+      leds[DIN_L1][now.second() / 10] = CRGB(222,120,16);
+      leds[DIN_L2][now.second() % 10] = CRGB(225,200,21);
+
       FastLED.show();
     }
   }
