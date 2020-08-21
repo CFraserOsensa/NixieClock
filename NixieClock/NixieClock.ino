@@ -48,7 +48,7 @@
 
 #define LED_TYPE          WS2812B
 #define COLOR_ORDER       GRB
-#define BRIGHTNESS        200
+#define BRIGHTNESS        5
 
 // Define the 2D array of LEDs and strips
 CRGB leds[NUM_STRIPS][NUM_LEDS];
@@ -119,12 +119,12 @@ void setup() {
   Serial.print("Si7006 is connected: ");
   Serial.println(si7006.isConnected() ? "Yes" : "No");
 
-  LEDS.addLeds<LED_TYPE, DIN_L1_PIN, COLOR_ORDER>(leds[DIN_L1], NUM_LEDS);
-  LEDS.addLeds<LED_TYPE, DIN_L2_PIN, COLOR_ORDER>(leds[DIN_L1], NUM_LEDS);
-  LEDS.addLeds<LED_TYPE, DIN1_PIN, COLOR_ORDER>(leds[DIN1], NUM_LEDS);
-  LEDS.addLeds<LED_TYPE, DIN2_PIN, COLOR_ORDER>(leds[DIN2], NUM_LEDS);
-  LEDS.addLeds<LED_TYPE, DIN_R1_PIN, COLOR_ORDER>(leds[DIN_R1], NUM_LEDS);
-  LEDS.addLeds<LED_TYPE, DIN_R2_PIN, COLOR_ORDER>(leds[DIN_R2], NUM_LEDS);
+  FastLED.addLeds<LED_TYPE, DIN_L1_PIN, COLOR_ORDER>(leds[DIN_L1], NUM_LEDS);
+  FastLED.addLeds<LED_TYPE, DIN_L2_PIN, COLOR_ORDER>(leds[DIN_L1], NUM_LEDS);
+  FastLED.addLeds<LED_TYPE, DIN1_PIN, COLOR_ORDER>(leds[DIN1], NUM_LEDS);
+  FastLED.addLeds<LED_TYPE, DIN2_PIN, COLOR_ORDER>(leds[DIN2], NUM_LEDS);
+  FastLED.addLeds<LED_TYPE, DIN_R1_PIN, COLOR_ORDER>(leds[DIN_R1], NUM_LEDS);
+  FastLED.addLeds<LED_TYPE, DIN_R2_PIN, COLOR_ORDER>(leds[DIN_R2], NUM_LEDS);
 
   FastLED.setBrightness(BRIGHTNESS);
 
@@ -202,6 +202,10 @@ void loop() {
     if(now.second() != then.second()) {
       then = now;
       printTime();                                            // Display the current date/time    //
+      FastLED.clear();
+      leds[DIN1][now.second() % 10] = CRGB(222,52,16);
+      leds[DIN2][now.second() % 10] = CRGB(225,79,21);
+      FastLED.show();
     }
   }
 
