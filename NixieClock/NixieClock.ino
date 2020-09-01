@@ -11,6 +11,7 @@
 #include <TTSi7006.h>
 #include <FastLED.h>
 #include <MCP7940.h>
+#include <math.h>
 
 //constants
 //const uint32_t  BAUD_RATE     = 115200;
@@ -33,6 +34,17 @@
 #define CLAP_MIN_TIME     200 //ms
 #define CLAP_MAX_TIME     1000 //ms
 #define SET_TIMEOUT       30000 // 30s timeout if no activity
+
+// Non numerical LED locations
+#define TEMP_SYMB       0 //needs updating
+#define MINUS_SYMB      0 //needs updating
+#define CELS_SYMB       0 //needs updating
+#define FAHR_SYMB       0 //needs updating
+#define RH_SYMB       0 //needs updating
+#define PCNT_SYMB       0 //needs updating
+
+
+//Trim value set to -180 clock cycles every minute
 
 
 #define NUM_LEDS          10
@@ -58,7 +70,7 @@
 
 #define LED_TYPE          WS2812B
 #define COLOR_ORDER       GRB
-#define BRIGHTNESS        5
+#define MAX_BRIGHTNESS        5
 
 // Define the 2D array of LEDs and strips
 CRGB leds[NUM_STRIPS][NUM_LEDS];
@@ -83,15 +95,24 @@ char          inputBuffer[SPRINTF_BUFFER_SIZE];                               //
 MCP7940_Class MCP7940;
 DateTime now;
 DateTime then;
+int currTemp = 23;
+int currHumid = 30;
+int currUnit = CELS_SYMB;
 TimeSpan timeChange(0);
 
 TTSi7006 si7006 = TTSi7006(true);
+
+int brightness = MAX_BRIGHTNESS;
+int displayIndex = 0;
+int fadeFlag = 0;
+
+CRGB colours[6];
 
 
 
 void setup() {
   // put your setup code here, to run once:
-  //Serial.begin(BAUD_RATE); //Using this will make right board (Seconds) stop working
+  Serial.begin(BAUD_RATE); //Using this will make right board (Seconds) stop working
   pinMode(SW_UP_PIN, INPUT);
   pinMode(SW_DOWN_PIN, INPUT);
   pinMode(SW_SET_PIN, INPUT);
@@ -120,7 +141,7 @@ void setup() {
       delay(1000);                                                            // wait for a second                //
     } // of if-then oscillator didn't start                                   //                                  //
   } // of while the oscillator is off                                         //                                  //
-  MCP7940.adjust();                                                           // Set to library compile Date/Time //
+  //MCP7940.adjust();                                                           // Set to library compile Date/Time //
   Serial.println(F("Enabling battery backup mode"));                          //                                  //
   MCP7940.setBattery(true);                                                   // enable battery backup mode       //
   then = MCP7940.now();
@@ -136,7 +157,10 @@ void setup() {
   FastLED.addLeds<LED_TYPE, DIN_R1_PIN, COLOR_ORDER>(leds[DIN_R1], NUM_LEDS);
   FastLED.addLeds<LED_TYPE, DIN_R2_PIN, COLOR_ORDER>(leds[DIN_R2], NUM_LEDS);
 
-  FastLED.setBrightness(BRIGHTNESS);
+  for(int i=0; i < 6; i++)
+    colours[i] = CRGB::OrangeRed;
+
+  FastLED.setBrightness(brightness);
 
 }
 
@@ -160,8 +184,21 @@ void loop() {
       setLongPress();//Serial.println("SET - LONG PRESS");
   }
 
+  static bool isBright = 0;
   if(lastStateMODE == LOW && currentStateMODE == HIGH)    // button is pressed
+  {
     Serial.println("MODE - BUTTON PRESS");
+//    if(isBright)
+//    {
+//      isBright = 0;
+//      FastLED.setBrightness(BRIGHTNESS);
+//
+//    } else {
+//      isBright = 1;
+//      FastLED.setBrightness(255);
+//    }
+
+  }
 
   //Audio Spike - Did a double clap happen?
   if(lastStateATHRESH == LOW && currentStateATHRESH == HIGH) {        // Sound happens
@@ -169,6 +206,7 @@ void loop() {
     Serial.println("Audio Spike");
     if(currentClap - lastClap > CLAP_MIN_TIME && currentClap - lastClap < CLAP_MAX_TIME) {
       Serial.println("THE CLAPPER HAS HAPPENED"); //This is where you would call a function to display temperature
+      cycleDisplay();
       //Print out humidity
       Serial.print("Humidity: ");
       Serial.print(si7006.readHumidity());
@@ -212,16 +250,29 @@ void loop() {
     if(now.second() != then.second()) {
       then = now;
       printTime();                                            // Display the current date/time    //
-      FastLED.clear();
-      leds[DIN1][now.second() / 10] = CRGB(240,52,16);
-      leds[DIN2][now.second() % 10] = CRGB(225,79,21);
-      leds[DIN_R1][now.second() / 10] = CRGB(240,52,16);
-      leds[DIN_R2][now.second() % 10] = CRGB(240,52,16);
-      leds[DIN_L1][now.second() / 10] = CRGB(222,120,16);
-      leds[DIN_L2][now.second() % 10] = CRGB(225,200,21);
-
-      FastLED.show();
     }
+  }
+
+  //Fade handler
+  if(fadeFlag == 1) {
+    brightness--;
+    if(brightness <= 0) {
+      brightness = 0;
+      fadeFlag++;
+      
+      displayIndex++;
+      if(displayIndex > 3)
+        displayIndex = 0;
+    }
+    FastLED.setBrightness(brightness);
+    
+  } else if(fadeFlag == 2) {
+    brightness++;
+    if(brightness >= MAX_BRIGHTNESS) {
+      brightness = MAX_BRIGHTNESS;
+      fadeFlag = 0;
+    }
+    FastLED.setBrightness(brightness);
   }
 
 
@@ -229,6 +280,8 @@ void loop() {
   lastStateSET = currentStateSET;
   lastStateMODE = currentStateMODE;
   lastStateATHRESH = currentStateATHRESH;
+
+  updateLEDs();
 
 }
 
@@ -288,4 +341,52 @@ void printTime() {
   sprintf(inputBuffer,"%04d-%02d-%02d %02d:%02d:%02d", now.year(),          // Use sprintf() to pretty print    //
             now.month(), now.day(), now.hour(), now.minute(), now.second());  // date/time with leading zeros     //
   Serial.println(inputBuffer);                                              // Display the current date/time    //
+}
+
+//Kicks off the fade flag which begins cycling through temp/humid/date displays
+void cycleDisplay() {
+
+  currTemp = round( si7006.readTemperatureC() );
+  currHumid = round( si7006.readHumidity() );
+  fadeFlag = 1;
+}
+
+//Updates the tube LEDs
+void updateLEDs() {
+  FastLED.clear();
+  switch(displayIndex) {
+    case 0: //time
+      leds[DIN_L1][now.hour() / 10] = colours[DIN_L1];
+      leds[DIN_L2][now.hour() % 10] = colours[DIN_L2];
+      leds[DIN1][now.minute() / 10] = colours[DIN1];
+      leds[DIN2][now.minute() % 10] = colours[DIN2];
+      leds[DIN_R1][now.second() / 10] = colours[DIN_R1];
+      leds[DIN_R2][now.second() % 10] = colours[DIN_R2];
+      break;
+    case 1: //temp
+      leds[DIN_L1][TEMP_SYMB] = colours[DIN_L1];
+      if(currTemp >= 100)
+        leds[DIN_L2][currTemp / 100] = colours[DIN_L2];
+      else if( currTemp < 0 )
+        leds[DIN_L2][MINUS_SYMB] = colours[DIN_L2];
+      leds[DIN1][(currTemp/10) % 10] = colours[DIN1];
+      leds[DIN2][currTemp % 10] = colours[DIN2];
+      leds[DIN_R1][currUnit] = colours[DIN_R1];
+      break;      
+    case 2: //humid
+      leds[DIN_L1][RH_SYMB] = colours[DIN_L1];
+      leds[DIN1][currHumid / 10] = colours[DIN1];
+      leds[DIN2][currHumid % 10] = colours[DIN2];
+      leds[DIN_R1][PCNT_SYMB] = colours[DIN_L1];
+      break;
+    case 3: //date
+      leds[DIN_L1][now.month() / 10] = colours[DIN_L1];
+      leds[DIN_L2][now.month() % 10] = colours[DIN_L2];
+      leds[DIN1][now.day() / 10] = colours[DIN1];
+      leds[DIN2][now.day() % 10] = colours[DIN2];
+      leds[DIN_R1][(now.year()/10) % 10] = colours[DIN_R1];
+      leds[DIN_R2][now.year() % 10] = colours[DIN_R2];
+      break;    
+  }
+  FastLED.show();
 }
