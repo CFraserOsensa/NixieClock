@@ -36,12 +36,13 @@
 #define SET_TIMEOUT       30000 // 30s timeout if no activity
 
 // Non numerical LED locations
-#define TEMP_SYMB       0 //needs updating
-#define MINUS_SYMB      0 //needs updating
-#define CELS_SYMB       0 //needs updating
-#define FAHR_SYMB       0 //needs updating
-#define RH_SYMB       0 //needs updating
-#define PCNT_SYMB       0 //needs updating
+//#define TEMP_SYMB       0 //needs updating
+#define MINUS_SYMB      9 //needs updating
+#define CELS_SYMB       6 //needs updating
+#define FAHR_SYMB       9 //needs updating
+#define KELV_SYMB       8 //needs updating
+#define RH_SYMB         6 //needs updating
+#define PCNT_SYMB       7 //needs updating
 
 
 //Trim value set to -180 clock cycles every minute
@@ -70,7 +71,7 @@
 
 #define LED_TYPE          WS2812B
 #define COLOR_ORDER       GRB
-#define MAX_BRIGHTNESS        5
+#define MAX_BRIGHTNESS        255
 
 // Define the 2D array of LEDs and strips
 CRGB leds[NUM_STRIPS][NUM_LEDS];
@@ -105,6 +106,10 @@ TTSi7006 si7006 = TTSi7006(true);
 int brightness = MAX_BRIGHTNESS;
 int displayIndex = 0;
 int fadeFlag = 0;
+int isCycling = 0;
+unsigned long lastCycle = 0;
+
+#define CYCLE_PERIOD    4000 //ms
 
 CRGB colours[6];
 
@@ -112,7 +117,7 @@ CRGB colours[6];
 
 void setup() {
   // put your setup code here, to run once:
-  Serial.begin(BAUD_RATE); //Using this will make right board (Seconds) stop working
+  //Serial.begin(BAUD_RATE); //Using this will make right board (Seconds) stop working
   pinMode(SW_UP_PIN, INPUT);
   pinMode(SW_DOWN_PIN, INPUT);
   pinMode(SW_SET_PIN, INPUT);
@@ -261,8 +266,14 @@ void loop() {
       fadeFlag++;
       
       displayIndex++;
-      if(displayIndex > 3)
+      if(displayIndex > 3) {
         displayIndex = 0;
+        isCycling = 0;
+      } else {
+        isCycling = 1;
+        lastCycle = millis();
+      }
+        
     }
     FastLED.setBrightness(brightness);
     
@@ -273,6 +284,11 @@ void loop() {
       fadeFlag = 0;
     }
     FastLED.setBrightness(brightness);
+  }
+
+  if(isCycling) {
+    if( millis() - lastCycle >= CYCLE_PERIOD ) 
+      cycleDisplay();
   }
 
 
@@ -290,30 +306,54 @@ void setShortPress() {
     setTimeIndex++;
     //Serial specific
     switch(setTimeIndex) {
-      case 1:
+      case 1: //Impossible
         Serial.println("Set Hour");
         timeChange = TimeSpan(0,1,0,0);
         break;
       case 2:
+        colours[DIN_L1] = CRGB::OrangeRed;
+        colours[DIN_L2] = CRGB::OrangeRed;
+        colours[DIN1] = CRGB::Indigo;
+        colours[DIN2] = CRGB::Indigo;
         Serial.println("Set Minute");
         timeChange = TimeSpan(0,0,1,0);
         break;
       case 3:
+        colours[DIN1] = CRGB::OrangeRed;
+        colours[DIN2] = CRGB::OrangeRed;
+        colours[DIN_R1] = CRGB::Indigo;
+        colours[DIN_R2] = CRGB::Indigo;
         Serial.println("Set Second");
         timeChange = TimeSpan(0,0,0,1);
         break;
       case 4:
+        colours[DIN_R1] = CRGB::OrangeRed;
+        colours[DIN_R2] = CRGB::OrangeRed;
+        colours[DIN_L1] = CRGB::Indigo;
+        colours[DIN_L2] = CRGB::Indigo;
         Serial.println("Set Month");
+        displayIndex = 3;
         break;
       case 5:
+        colours[DIN_L1] = CRGB::OrangeRed;
+        colours[DIN_L2] = CRGB::OrangeRed;
+        colours[DIN1] = CRGB::Indigo;
+        colours[DIN2] = CRGB::Indigo;
         Serial.println("Set Day");
         timeChange = TimeSpan(1,0,0,0);
         break;
       case 6:
+        colours[DIN1] = CRGB::OrangeRed;
+        colours[DIN2] = CRGB::OrangeRed;
+        colours[DIN_R1] = CRGB::Indigo;
+        colours[DIN_R2] = CRGB::Indigo;
         Serial.println("Set Year");
         break;
       case 7:
+        colours[DIN_R1] = CRGB::OrangeRed;
+        colours[DIN_R2] = CRGB::OrangeRed;
         Serial.println("Finished Setting");
+        displayIndex = 0;
         setTimeIndex = 0;
         MCP7940.adjust(now);
         break;
@@ -324,10 +364,15 @@ void setShortPress() {
 
 void setLongPress() {
   if(setTimeIndex == 0) {
+    colours[DIN_L1] = CRGB::Indigo;
+    colours[DIN_L2] = CRGB::Indigo;
     setTimeIndex = 1;
     Serial.println("Set Hour");
     timeChange = TimeSpan(0,1,0,0);
   } else {
+    for(int i=0;i<6;i++)
+    colours[i] = CRGB::OrangeRed;
+    displayIndex = 0;
     setTimeIndex = 0;
     MCP7940.adjust(now);
   }
@@ -345,10 +390,15 @@ void printTime() {
 
 //Kicks off the fade flag which begins cycling through temp/humid/date displays
 void cycleDisplay() {
+  if(setTimeIndex == 0) { //DO NOT want to start cycling while you're in the middle of setting the time
 
-  currTemp = round( si7006.readTemperatureC() );
-  currHumid = round( si7006.readHumidity() );
+    
+  //Could add color changes here
+//  currTemp = round( si7006.readTemperatureC() );
+//  currHumid = round( si7006.readHumidity() );
   fadeFlag = 1;
+
+  }
 }
 
 //Updates the tube LEDs
@@ -364,16 +414,17 @@ void updateLEDs() {
       leds[DIN_R2][now.second() % 10] = colours[DIN_R2];
       break;
     case 1: //temp
-      leds[DIN_L1][TEMP_SYMB] = colours[DIN_L1];
-      if(currTemp >= 100)
-        leds[DIN_L2][currTemp / 100] = colours[DIN_L2];
-      else if( currTemp < 0 )
-        leds[DIN_L2][MINUS_SYMB] = colours[DIN_L2];
-      leds[DIN1][(currTemp/10) % 10] = colours[DIN1];
-      leds[DIN2][currTemp % 10] = colours[DIN2];
+      currTemp = round( si7006.readTemperatureC() );
+      if(currTemp < 0)
+        leds[DIN_L1][MINUS_SYMB] = colours[DIN_L1];
+      if(abs(currTemp) >= 100)
+        leds[DIN_L2][abs(currTemp) / 100] = colours[DIN_L2];
+      leds[DIN1][(abs(currTemp)/10) % 10] = colours[DIN1];
+      leds[DIN2][abs(currTemp) % 10] = colours[DIN2];
       leds[DIN_R1][currUnit] = colours[DIN_R1];
       break;      
     case 2: //humid
+      currHumid = round( si7006.readHumidity() );
       leds[DIN_L1][RH_SYMB] = colours[DIN_L1];
       leds[DIN1][currHumid / 10] = colours[DIN1];
       leds[DIN2][currHumid % 10] = colours[DIN2];
@@ -387,6 +438,27 @@ void updateLEDs() {
       leds[DIN_R1][(now.year()/10) % 10] = colours[DIN_R1];
       leds[DIN_R2][now.year() % 10] = colours[DIN_R2];
       break;    
+  }
+  //blinking effect when setting DONT really like, should switch to an oscillatory brightness
+  if(setTimeIndex != 0) {
+    if(millis() % 900 > 500) {
+      if(setTimeIndex == 1 || setTimeIndex == 4) {
+        for(int i=0;i<10;i++) {
+          leds[DIN_L1][i] = CRGB(0,0,0);
+          leds[DIN_L2][i] = CRGB(0,0,0);
+        }
+      } else if(setTimeIndex == 2 || setTimeIndex == 5) {
+        for(int i=0;i<10;i++) {
+          leds[DIN1][i] = CRGB(0,0,0);
+          leds[DIN2][i] = CRGB(0,0,0);
+        }
+      } else {
+        for(int i=0;i<10;i++) {
+          leds[DIN_R1][i] = CRGB(0,0,0);
+          leds[DIN_R2][i] = CRGB(0,0,0);
+        }
+      }
+    }
   }
   FastLED.show();
 }
