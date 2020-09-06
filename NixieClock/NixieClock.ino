@@ -31,8 +31,8 @@
 #define ATHRESH_PIN       3
 #define SHORT_PRESS_TIME  500 //ms
 #define UPDOWN_COOLDOWN   200 //ms
-#define CLAP_MIN_TIME     200 //ms
-#define CLAP_MAX_TIME     1000 //ms
+#define CLAP_MIN_TIME     300 //ms
+#define CLAP_MAX_TIME     700 //ms
 #define SET_TIMEOUT       30000 // 30s timeout if no activity
 
 // Non numerical LED locations
@@ -89,6 +89,7 @@ unsigned long pressedTimeSET   = 0;
 unsigned long releasedTimeSET = 0;
 unsigned long lastClap    = 0;
 unsigned long currentClap = 0;
+unsigned long lastUPDOWN = 0;
 int setTimeIndex = 0;
 
 char          inputBuffer[SPRINTF_BUFFER_SIZE];                               // Buffer for sprintf()/sscanf()    //
@@ -109,7 +110,14 @@ int fadeFlag = 0;
 int isCycling = 0;
 unsigned long lastCycle = 0;
 
-#define CYCLE_PERIOD    4000 //ms
+int transitionFlag = 0;
+int transitionValue = 0;
+int transitionSlowdown = 0;
+
+int changeColour = 0;
+int currentHue = 11;
+
+#define CYCLE_PERIOD    5000 //ms
 
 CRGB colours[6];
 
@@ -193,6 +201,15 @@ void loop() {
   if(lastStateMODE == LOW && currentStateMODE == HIGH)    // button is pressed
   {
     Serial.println("MODE - BUTTON PRESS");
+    if(changeColour) {
+      changeColour = 0;
+      displayIndex = 0;
+    } else {
+      changeColour = 1;
+      displayIndex = 1;
+      currTemp = currentHue;
+    }
+    //modePress();
 //    if(isBright)
 //    {
 //      isBright = 0;
@@ -205,8 +222,29 @@ void loop() {
 
   }
 
+  if(changeColour) {
+    if(digitalRead(SW_UP_PIN) && (millis() - lastUPDOWN) > UPDOWN_COOLDOWN/2) {
+      currentHue++;
+      if(currentHue > 255)
+        currentHue = 0;
+      currTemp = currentHue;
+      for(int i=0;i<6;i++)
+        colours[i] = CHSV(currentHue,255,255);
+      lastUPDOWN = millis();
+    } else if(digitalRead(SW_DOWN_PIN) && (millis() - lastUPDOWN) > UPDOWN_COOLDOWN/2) {
+      currentHue--;
+      if(currentHue < 0)
+        currentHue = 255;
+      currTemp = currentHue;
+      for(int i=0;i<6;i++)
+        colours[i] = CHSV(currentHue,255,255);
+      lastUPDOWN = millis();
+    }
+  }
+
+
   //Audio Spike - Did a double clap happen?
-  if(lastStateATHRESH == LOW && currentStateATHRESH == HIGH) {        // Sound happens
+  if(lastStateATHRESH == LOW && currentStateATHRESH == HIGH && !changeColour && !isCycling && setTimeIndex == 0 && !transitionFlag && fadeFlag == 0) {        // Sound happens
     currentClap = millis();
     Serial.println("Audio Spike");
     if(currentClap - lastClap > CLAP_MIN_TIME && currentClap - lastClap < CLAP_MAX_TIME) {
@@ -228,7 +266,7 @@ void loop() {
     lastClap = currentClap;
   }
   if(setTimeIndex != 0) {
-    if(digitalRead(SW_UP_PIN)) {
+    if(digitalRead(SW_UP_PIN) && (millis() - lastUPDOWN) > UPDOWN_COOLDOWN) {
       if( setTimeIndex == 4 )
         now.incMonth();
       else if( setTimeIndex == 6 )
@@ -236,8 +274,8 @@ void loop() {
       else
         now = now + timeChange;
       printTime(); 
-      delay(UPDOWN_COOLDOWN);
-    } else if(digitalRead(SW_DOWN_PIN)) {
+      lastUPDOWN = millis();
+    } else if(digitalRead(SW_DOWN_PIN) && (millis() - lastUPDOWN) > UPDOWN_COOLDOWN) {
       if( setTimeIndex == 4 )
         now.decMonth();
       else if( setTimeIndex == 6 )
@@ -245,7 +283,18 @@ void loop() {
       else
         now = now - timeChange;
       printTime(); 
-      delay(UPDOWN_COOLDOWN);
+      lastUPDOWN = millis();
+    }
+    if(setTimeIndex == 1 || setTimeIndex == 4) {
+      colours[DIN_L1] = CHSV(195,255,beatsin8(28,28,255));
+      colours[DIN_L2] = CHSV(195,255,beatsin8(28,28,255));
+      
+    } else if(setTimeIndex == 2 || setTimeIndex == 5) {
+      colours[DIN1] = CHSV(195,255,beatsin8(28,28,255));
+      colours[DIN2] = CHSV(195,255,beatsin8(28,28,255));
+    } else {
+      colours[DIN_R1] = CHSV(195,255,beatsin8(28,28,255));
+      colours[DIN_R2] = CHSV(195,255,beatsin8(28,28,255));
     }
 
     
@@ -260,7 +309,7 @@ void loop() {
 
   //Fade handler
   if(fadeFlag == 1) {
-    brightness--;
+    brightness -= 4;
     if(brightness <= 0) {
       brightness = 0;
       fadeFlag++;
@@ -273,12 +322,13 @@ void loop() {
         isCycling = 1;
         lastCycle = millis();
       }
+      updateColours();
         
     }
     FastLED.setBrightness(brightness);
     
   } else if(fadeFlag == 2) {
-    brightness++;
+    brightness += 4;
     if(brightness >= MAX_BRIGHTNESS) {
       brightness = MAX_BRIGHTNESS;
       fadeFlag = 0;
@@ -287,9 +337,29 @@ void loop() {
   }
 
   if(isCycling) {
-    if( millis() - lastCycle >= CYCLE_PERIOD ) 
+    if( millis() - lastCycle >= CYCLE_PERIOD ) {
       cycleDisplay();
+      isCycling = 0;
+    }
   }
+
+  if(transitionFlag && transitionSlowdown++ > 2) {
+    transitionSlowdown = 0;
+    transitionValue++;
+    CRGB tempCol = blend(CHSV(96,220,255), CRGB::OrangeRed, transitionValue);
+    for(int i=0;i<6;i++)
+      colours[i] = tempCol;
+
+    if(transitionValue == 128)
+      displayIndex = 0;
+    if(transitionValue >= 255) {
+       transitionValue = 0;
+       transitionFlag = 0;
+    }
+
+    
+  }
+  
 
 
   // save the the last state
@@ -327,33 +397,39 @@ void setShortPress() {
         timeChange = TimeSpan(0,0,0,1);
         break;
       case 4:
-        colours[DIN_R1] = CRGB::OrangeRed;
-        colours[DIN_R2] = CRGB::OrangeRed;
+//        colours[DIN_R1] = CRGB::OrangeRed;
+//        colours[DIN_R2] = CRGB::OrangeRed;CHSV(96,200,255)
+        colours[DIN_R1] = CHSV(96,220,255);
+        colours[DIN_R2] = CHSV(96,220,255);
+        colours[DIN1] = CHSV(96,220,255);
+        colours[DIN2] = CHSV(96,220,255);
         colours[DIN_L1] = CRGB::Indigo;
         colours[DIN_L2] = CRGB::Indigo;
         Serial.println("Set Month");
         displayIndex = 3;
         break;
       case 5:
-        colours[DIN_L1] = CRGB::OrangeRed;
-        colours[DIN_L2] = CRGB::OrangeRed;
+        colours[DIN_L1] = CHSV(96,220,255);//CRGB::OrangeRed;
+        colours[DIN_L2] = CHSV(96,220,255);//CRGB::OrangeRed;
         colours[DIN1] = CRGB::Indigo;
         colours[DIN2] = CRGB::Indigo;
         Serial.println("Set Day");
         timeChange = TimeSpan(1,0,0,0);
         break;
       case 6:
-        colours[DIN1] = CRGB::OrangeRed;
-        colours[DIN2] = CRGB::OrangeRed;
+        colours[DIN1] = CHSV(96,220,255);//CRGB::OrangeRed;
+        colours[DIN2] = CHSV(96,220,255);//CRGB::OrangeRed;
         colours[DIN_R1] = CRGB::Indigo;
         colours[DIN_R2] = CRGB::Indigo;
         Serial.println("Set Year");
         break;
       case 7:
-        colours[DIN_R1] = CRGB::OrangeRed;
-        colours[DIN_R2] = CRGB::OrangeRed;
+        colours[DIN_R1] = CHSV(96,220,255);//CRGB::OrangeRed;
+        colours[DIN_R2] = CHSV(96,220,255);//CRGB::OrangeRed;
         Serial.println("Finished Setting");
-        displayIndex = 0;
+        //displayIndex = 0;
+        transitionFlag = 1;
+        transitionValue = 0;
         setTimeIndex = 0;
         MCP7940.adjust(now);
         break;
@@ -379,7 +455,7 @@ void setLongPress() {
 }
 
 void modePress() {
-  
+  //cycleDisplay();
 }
 
 void printTime() {
@@ -391,14 +467,34 @@ void printTime() {
 //Kicks off the fade flag which begins cycling through temp/humid/date displays
 void cycleDisplay() {
   if(setTimeIndex == 0) { //DO NOT want to start cycling while you're in the middle of setting the time
-
-    
-  //Could add color changes here
-//  currTemp = round( si7006.readTemperatureC() );
-//  currHumid = round( si7006.readHumidity() );
-  fadeFlag = 1;
-
+    currTemp = round( si7006.readTemperatureC() )-5; //IR gun measured 25 in room, 28 on board, si7006 reported 30
+    currHumid = round( si7006.readHumidity() );
+    fadeFlag = 1;
   }
+}
+
+//Updates the colours based on which set of data is being shown
+void updateColours() {
+  switch(displayIndex) {
+    case 0: //time
+      for(int i=0;i<6;i++)
+        colours[i] = CRGB::OrangeRed;
+      break;
+    case 1: //temp could adjust based on temp
+      for(int i=0;i<6;i++)
+        colours[i] = CHSV(160,200,255);//bluish
+      break;      
+    case 2: //humid could adjust based on value
+     for(int i=0;i<6;i++)
+        colours[i] = CRGB::Gray;
+      break;
+    case 3: //date could adjust based on season
+      for(int i=0;i<6;i++)
+        colours[i] = CHSV(96,200,255); //Greenish
+      break;    
+  }
+
+  
 }
 
 //Updates the tube LEDs
@@ -414,7 +510,6 @@ void updateLEDs() {
       leds[DIN_R2][now.second() % 10] = colours[DIN_R2];
       break;
     case 1: //temp
-      currTemp = round( si7006.readTemperatureC() );
       if(currTemp < 0)
         leds[DIN_L1][MINUS_SYMB] = colours[DIN_L1];
       if(abs(currTemp) >= 100)
@@ -424,7 +519,6 @@ void updateLEDs() {
       leds[DIN_R1][currUnit] = colours[DIN_R1];
       break;      
     case 2: //humid
-      currHumid = round( si7006.readHumidity() );
       leds[DIN_L1][RH_SYMB] = colours[DIN_L1];
       leds[DIN1][currHumid / 10] = colours[DIN1];
       leds[DIN2][currHumid % 10] = colours[DIN2];
@@ -438,27 +532,6 @@ void updateLEDs() {
       leds[DIN_R1][(now.year()/10) % 10] = colours[DIN_R1];
       leds[DIN_R2][now.year() % 10] = colours[DIN_R2];
       break;    
-  }
-  //blinking effect when setting DONT really like, should switch to an oscillatory brightness
-  if(setTimeIndex != 0) {
-    if(millis() % 900 > 500) {
-      if(setTimeIndex == 1 || setTimeIndex == 4) {
-        for(int i=0;i<10;i++) {
-          leds[DIN_L1][i] = CRGB(0,0,0);
-          leds[DIN_L2][i] = CRGB(0,0,0);
-        }
-      } else if(setTimeIndex == 2 || setTimeIndex == 5) {
-        for(int i=0;i<10;i++) {
-          leds[DIN1][i] = CRGB(0,0,0);
-          leds[DIN2][i] = CRGB(0,0,0);
-        }
-      } else {
-        for(int i=0;i<10;i++) {
-          leds[DIN_R1][i] = CRGB(0,0,0);
-          leds[DIN_R2][i] = CRGB(0,0,0);
-        }
-      }
-    }
   }
   FastLED.show();
 }
