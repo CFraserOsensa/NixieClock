@@ -28,11 +28,12 @@
 #define SW_DOWN_PIN       10
 #define SW_SET_PIN        A1
 #define SW_MODE_PIN       9
+#define AUD_ADC_PIN       A0
 #define ATHRESH_PIN       3
 #define SHORT_PRESS_TIME  500 //ms
 #define UPDOWN_COOLDOWN   200 //ms
-#define CLAP_MIN_TIME     300 //ms
-#define CLAP_MAX_TIME     700 //ms
+#define CLAP_MIN_TIME     200 //ms
+#define CLAP_MAX_TIME     800 //ms
 #define SET_TIMEOUT       30000 // 30s timeout if no activity
 
 // Non numerical LED locations
@@ -116,6 +117,9 @@ int transitionSlowdown = 0;
 
 int changeColour = 0;
 int currentHue = 11;
+int currentSat = 255;
+
+CRGB defaultOrange = CHSV(13,255,255);
 
 #define CYCLE_PERIOD    5000 //ms
 
@@ -131,6 +135,7 @@ void setup() {
   pinMode(SW_SET_PIN, INPUT);
   pinMode(SW_MODE_PIN, INPUT);
   pinMode(ATHRESH_PIN, INPUT);
+  pinMode(AUD_ADC_PIN, INPUT);
 
   Serial.println(F("\nStarting NixieClock program version 0.1"));
   Serial.print(F("- Compiled with c++ version "));                            //                                  //
@@ -171,7 +176,7 @@ void setup() {
   FastLED.addLeds<LED_TYPE, DIN_R2_PIN, COLOR_ORDER>(leds[DIN_R2], NUM_LEDS);
 
   for(int i=0; i < 6; i++)
-    colours[i] = CRGB::OrangeRed;
+    colours[i] = defaultOrange;
 
   FastLED.setBrightness(brightness);
 
@@ -201,13 +206,17 @@ void loop() {
   if(lastStateMODE == LOW && currentStateMODE == HIGH)    // button is pressed
   {
     Serial.println("MODE - BUTTON PRESS");
-    if(changeColour) {
-      changeColour = 0;
-      displayIndex = 0;
-    } else {
+    if(changeColour == 1) {
+      changeColour = 2;
+      displayIndex = 1;
+      currTemp = currentSat;
+    } else if (changeColour == 0) {
       changeColour = 1;
       displayIndex = 1;
       currTemp = currentHue;
+    } else {
+      changeColour = 0;
+      displayIndex = 0;
     }
     //modePress();
 //    if(isBright)
@@ -222,22 +231,36 @@ void loop() {
 
   }
 
-  if(changeColour) {
+  if(changeColour != 0) {
     if(digitalRead(SW_UP_PIN) && (millis() - lastUPDOWN) > UPDOWN_COOLDOWN/2) {
-      currentHue++;
-      if(currentHue > 255)
-        currentHue = 0;
-      currTemp = currentHue;
+      if(changeColour == 1) {
+        currentHue++;
+          if(currentHue > 255)
+            currentHue = 0;
+          currTemp = currentHue;
+      } else {
+        currentSat++;
+        if(currentSat > 255)
+          currentSat = 0;
+        currTemp = currentSat;
+      }
       for(int i=0;i<6;i++)
-        colours[i] = CHSV(currentHue,255,255);
+        colours[i] = CHSV(currentHue,currentSat,255);
       lastUPDOWN = millis();
     } else if(digitalRead(SW_DOWN_PIN) && (millis() - lastUPDOWN) > UPDOWN_COOLDOWN/2) {
-      currentHue--;
-      if(currentHue < 0)
-        currentHue = 255;
-      currTemp = currentHue;
+      if(changeColour == 1) {
+        currentHue--;
+        if(currentHue < 0)
+          currentHue = 255;
+        currTemp = currentHue;
+      } else {
+        currentSat--;
+        if(currentSat < 0)
+          currentSat = 255;
+        currTemp = currentSat;
+      }
       for(int i=0;i<6;i++)
-        colours[i] = CHSV(currentHue,255,255);
+        colours[i] = CHSV(currentHue,currentSat,255);
       lastUPDOWN = millis();
     }
   }
@@ -346,7 +369,7 @@ void loop() {
   if(transitionFlag && transitionSlowdown++ > 2) {
     transitionSlowdown = 0;
     transitionValue++;
-    CRGB tempCol = blend(CHSV(96,220,255), CRGB::OrangeRed, transitionValue);
+    CRGB tempCol = blend(CHSV(76,255,255), defaultOrange, transitionValue);
     for(int i=0;i<6;i++)
       colours[i] = tempCol;
 
@@ -381,51 +404,51 @@ void setShortPress() {
         timeChange = TimeSpan(0,1,0,0);
         break;
       case 2:
-        colours[DIN_L1] = CRGB::OrangeRed;
-        colours[DIN_L2] = CRGB::OrangeRed;
+        colours[DIN_L1] = defaultOrange;
+        colours[DIN_L2] = defaultOrange;
         colours[DIN1] = CRGB::Indigo;
         colours[DIN2] = CRGB::Indigo;
         Serial.println("Set Minute");
         timeChange = TimeSpan(0,0,1,0);
         break;
       case 3:
-        colours[DIN1] = CRGB::OrangeRed;
-        colours[DIN2] = CRGB::OrangeRed;
+        colours[DIN1] = defaultOrange;
+        colours[DIN2] = defaultOrange;
         colours[DIN_R1] = CRGB::Indigo;
         colours[DIN_R2] = CRGB::Indigo;
         Serial.println("Set Second");
         timeChange = TimeSpan(0,0,0,1);
         break;
       case 4:
-//        colours[DIN_R1] = CRGB::OrangeRed;
-//        colours[DIN_R2] = CRGB::OrangeRed;CHSV(96,200,255)
-        colours[DIN_R1] = CHSV(96,220,255);
-        colours[DIN_R2] = CHSV(96,220,255);
-        colours[DIN1] = CHSV(96,220,255);
-        colours[DIN2] = CHSV(96,220,255);
+//        colours[DIN_R1] = defaultOrange;
+//        colours[DIN_R2] = defaultOrange;CHSV(96,200,255)
+        colours[DIN_R1] = CHSV(76,255,255);
+        colours[DIN_R2] = CHSV(76,255,255);
+        colours[DIN1] = CHSV(76,255,255);
+        colours[DIN2] = CHSV(76,255,255);
         colours[DIN_L1] = CRGB::Indigo;
         colours[DIN_L2] = CRGB::Indigo;
         Serial.println("Set Month");
         displayIndex = 3;
         break;
       case 5:
-        colours[DIN_L1] = CHSV(96,220,255);//CRGB::OrangeRed;
-        colours[DIN_L2] = CHSV(96,220,255);//CRGB::OrangeRed;
+        colours[DIN_L1] = CHSV(76,255,255);//defaultOrange;
+        colours[DIN_L2] = CHSV(76,255,255);//defaultOrange;
         colours[DIN1] = CRGB::Indigo;
         colours[DIN2] = CRGB::Indigo;
         Serial.println("Set Day");
         timeChange = TimeSpan(1,0,0,0);
         break;
       case 6:
-        colours[DIN1] = CHSV(96,220,255);//CRGB::OrangeRed;
-        colours[DIN2] = CHSV(96,220,255);//CRGB::OrangeRed;
+        colours[DIN1] = CHSV(76,255,255);//defaultOrange;
+        colours[DIN2] = CHSV(76,255,255);//defaultOrange;
         colours[DIN_R1] = CRGB::Indigo;
         colours[DIN_R2] = CRGB::Indigo;
         Serial.println("Set Year");
         break;
       case 7:
-        colours[DIN_R1] = CHSV(96,220,255);//CRGB::OrangeRed;
-        colours[DIN_R2] = CHSV(96,220,255);//CRGB::OrangeRed;
+        colours[DIN_R1] = CHSV(76,255,255);//defaultOrange;
+        colours[DIN_R2] = CHSV(76,255,255);//defaultOrange;
         Serial.println("Finished Setting");
         //displayIndex = 0;
         transitionFlag = 1;
@@ -447,7 +470,7 @@ void setLongPress() {
     timeChange = TimeSpan(0,1,0,0);
   } else {
     for(int i=0;i<6;i++)
-    colours[i] = CRGB::OrangeRed;
+    colours[i] = defaultOrange;
     displayIndex = 0;
     setTimeIndex = 0;
     MCP7940.adjust(now);
@@ -475,26 +498,74 @@ void cycleDisplay() {
 
 //Updates the colours based on which set of data is being shown
 void updateColours() {
-  switch(displayIndex) {
-    case 0: //time
-      for(int i=0;i<6;i++)
-        colours[i] = CRGB::OrangeRed;
-      break;
-    case 1: //temp could adjust based on temp
-      for(int i=0;i<6;i++)
-        colours[i] = CHSV(160,200,255);//bluish
-      break;      
-    case 2: //humid could adjust based on value
-     for(int i=0;i<6;i++)
-        colours[i] = CRGB::Gray;
-      break;
-    case 3: //date could adjust based on season
-      for(int i=0;i<6;i++)
-        colours[i] = CHSV(96,200,255); //Greenish
-      break;    
-  }
+  if(displayIndex == 0) { //time
+    for(int i=0;i<6;i++)
+      colours[i] = defaultOrange;     
+           
+  } else if(displayIndex == 1) { //temp could adjust based on temp
+    CRGB tempCol = CRGB::White;
+    if(currTemp >= 30)
+      tempCol = CHSV(0,255,255);
+    else if(currTemp <= 15)
+      tempCol = CHSV(140,40,255);
+    else {
+      switch(currTemp) {
+        case 29:
+          tempCol = CHSV(2,255,255);
+          break;
+        case 28:
+          tempCol = CHSV(3,255,255);
+          break;
+        case 27:
+          tempCol = CHSV(5,255,255);
+          break;
+        case 26:
+          tempCol = CHSV(7,255,255);
+          break;
+        case 25:
+          tempCol = CHSV(9,255,255);
+          break;
+        case 24:
+          tempCol = CHSV(11,255,255);
+          break;
+        case 23:
+          tempCol = CHSV(15,255,255);
+          break;
+        case 22:
+          tempCol = CHSV(26,255,255);
+          break;
+        case 21:
+          tempCol = CHSV(26,225,255);
+          break;
+        case 20:
+          tempCol = CHSV(26,200,255);
+          break;
+        case 19:
+          tempCol = CHSV(27,210,255);
+          break;
+        case 18:
+          tempCol = CHSV(29,185,255);
+          break;
+        case 17:
+          tempCol = CHSV(30,160,255);
+          break;
+        case 16:
+          tempCol = CHSV(70,118,255);
+          break;
+      }
+    }
+    for(int i=0;i<6;i++)
+      colours[i] = tempCol;
+      
+  } else if(displayIndex == 2) { //humid could adjust based on value
+   for(int i=0;i<6;i++)
+      colours[i] = CHSV(140,220,225); //nice blue
+      
+  } else if(displayIndex == 3) { //date could adjust based on season
+    for(int i=0;i<6;i++)
+      colours[i] = CHSV(89,255,255); //Greenish
 
-  
+  }
 }
 
 //Updates the tube LEDs
