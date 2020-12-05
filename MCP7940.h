@@ -23,6 +23,7 @@
 * @section author Author
 *
 * Written by Arnd\@SV-Zanshin
+* Non official branch by CFraser to more easily modify the year/month
 *
 * @section versions Changelog
 * 
@@ -65,6 +66,8 @@
 * 1.0.2b | 2017-07-20 | SV-Zanshin          | Added alarm handling
 * 1.0.1b | 2017-07-19 | SV-Zanshin          | Added methods
 * 1.0.0b | 2017-07-17 | SV-Zanshin          | Initial coding
+
+* 1.nx   | 2020-12-05 | CFraser             | Added helper methods for increasing/decreasing date my months and years
 *******************************************************************************************************************/
 
 #include "Arduino.h"  // Arduino data type definitions
@@ -167,6 +170,9 @@
       uint8_t  minute()       const { return mm; }
       /*! return the current second */
       uint8_t  second()       const { return ss; }
+	  
+	  //NONOFFICIAL CFraser edits: next 4 methods
+	  
 	  //increase year by 1
 	  void	   incYear()	  { yOff++; }
 	  //decrease year by 1
@@ -175,6 +181,8 @@
 	  void	   incMonth();
 	  //decrease month by 1
 	  void	   decMonth();
+	  
+	  
       /*! return the current day of the week starting at 0 */
       uint8_t  dayOfTheWeek() const;
       /*! return the current seconds in the year */

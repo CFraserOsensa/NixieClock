@@ -183,6 +183,7 @@ void setup() {
 }
 
 void loop() {
+  //Read buttons/peak detector
   currentStateSET = digitalRead(SW_SET_PIN);
   currentStateMODE = digitalRead(SW_MODE_PIN);
   currentStateATHRESH = digitalRead(ATHRESH_PIN);
@@ -218,19 +219,9 @@ void loop() {
       changeColour = 0;
       displayIndex = 0;
     }
-    //modePress();
-//    if(isBright)
-//    {
-//      isBright = 0;
-//      FastLED.setBrightness(BRIGHTNESS);
-//
-//    } else {
-//      isBright = 1;
-//      FastLED.setBrightness(255);
-//    }
-
   }
 
+  //Colour change mode enabled, so listen to up/down buttons and change accordingly
   if(changeColour != 0) {
     if(digitalRead(SW_UP_PIN) && (millis() - lastUPDOWN) > UPDOWN_COOLDOWN/2) {
       if(changeColour == 1) {
@@ -288,6 +279,8 @@ void loop() {
 
     lastClap = currentClap;
   }
+
+  //Setting time mode enabled, so listen to up/down buttons and change accordingly
   if(setTimeIndex != 0) {
     if(digitalRead(SW_UP_PIN) && (millis() - lastUPDOWN) > UPDOWN_COOLDOWN) {
       if( setTimeIndex == 4 )
@@ -394,6 +387,7 @@ void loop() {
 
 }
 
+//Function for when the SET button has a quick press, which is used for accepting the current value, and moving to the next sec/min/hour/day/month/yr
 void setShortPress() {
   if(setTimeIndex > 0) {
     setTimeIndex++;
@@ -461,6 +455,7 @@ void setShortPress() {
   }
 }
 
+//Function for handling a long press of the SET button, which either enters the mode for setting the time/date or accepts all changes and resumes normal operation
 void setLongPress() {
   if(setTimeIndex == 0) {
     colours[DIN_L1] = CRGB::Indigo;
@@ -481,6 +476,7 @@ void modePress() {
   //cycleDisplay();
 }
 
+//Serial printout of current time
 void printTime() {
   sprintf(inputBuffer,"%04d-%02d-%02d %02d:%02d:%02d", now.year(),          // Use sprintf() to pretty print    //
             now.month(), now.day(), now.hour(), now.minute(), now.second());  // date/time with leading zeros     //
@@ -490,7 +486,7 @@ void printTime() {
 //Kicks off the fade flag which begins cycling through temp/humid/date displays
 void cycleDisplay() {
   if(setTimeIndex == 0) { //DO NOT want to start cycling while you're in the middle of setting the time
-    currTemp = round( si7006.readTemperatureC() )-5; //IR gun measured 25 in room, 28 on board, si7006 reported 30
+    currTemp = round( si7006.readTemperatureC() ); //Calibrated with thermal chamber, looks accurate enough
     currHumid = round( si7006.readHumidity() );
     fadeFlag = 1;
   }

@@ -1,8 +1,8 @@
 
 /*
- * Nixie Clock Project
+ * Nixie Clock Project turned into a dedicated 2 digit temperature indicator
  * Colin Fraser
- * August 21, 2020
+ * December 2, 2020
  * 
  * Notes: Pin 0/1 were a bad choice since they are shared by usart. Can't use serial if writing to R1/R2
  */
@@ -146,24 +146,24 @@ void setup() {
   Serial.print(F(__TIME__));                                                  //                                  //
   Serial.print(F("\n"));     
 
-  while (!MCP7940.begin()) {                                                  // Initialize RTC communications    //
-    Serial.println(F("Unable to find MCP7940M. Checking again in 3s."));      // Show error text                  //
-    delay(3000);                                                              // wait a second                    //
-  } // of loop until device is located 
-  Serial.println(F("MCP7940 initialized."));                                  //                                  //
-  while (!MCP7940.deviceStatus()) {                                           // Turn oscillator on if necessary  //
-    Serial.println(F("Oscillator is off, turning it on."));                   //                                  //
-    bool deviceStatus = MCP7940.deviceStart();                                // Start oscillator and return state//
-    if (!deviceStatus) {                                                      // If it didn't start               //
-      Serial.println(F("Oscillator did not start, trying again."));           // Show error and                   //
-      delay(1000);                                                            // wait for a second                //
-    } // of if-then oscillator didn't start                                   //                                  //
-  } // of while the oscillator is off                                         //                                  //
-  //MCP7940.adjust();                                                           // Set to library compile Date/Time //
-  Serial.println(F("Enabling battery backup mode"));                          //                                  //
-  MCP7940.setBattery(true);                                                   // enable battery backup mode       //
-  then = MCP7940.now();
-  now = then;
+//  while (!MCP7940.begin()) {                                                  // Initialize RTC communications    //
+//    Serial.println(F("Unable to find MCP7940M. Checking again in 3s."));      // Show error text                  //
+//    delay(3000);                                                              // wait a second                    //
+//  } // of loop until device is located 
+//  Serial.println(F("MCP7940 initialized."));                                  //                                  //
+//  while (!MCP7940.deviceStatus()) {                                           // Turn oscillator on if necessary  //
+//    Serial.println(F("Oscillator is off, turning it on."));                   //                                  //
+//    bool deviceStatus = MCP7940.deviceStart();                                // Start oscillator and return state//
+//    if (!deviceStatus) {                                                      // If it didn't start               //
+//      Serial.println(F("Oscillator did not start, trying again."));           // Show error and                   //
+//      delay(1000);                                                            // wait for a second                //
+//    } // of if-then oscillator didn't start                                   //                                  //
+//  } // of while the oscillator is off                                         //                                  //
+//  //MCP7940.adjust();                                                           // Set to library compile Date/Time //
+//  Serial.println(F("Enabling battery backup mode"));                          //                                  //
+//  MCP7940.setBattery(true);                                                   // enable battery backup mode       //
+//  then = MCP7940.now();
+//  now = then;
 
   Serial.print("Si7006 is connected: ");
   Serial.println(si7006.isConnected() ? "Yes" : "No");
@@ -230,162 +230,143 @@ void loop() {
 ////    }
 //
 //  }
-
-  if(changeColour != 0) {
-    if(digitalRead(SW_UP_PIN) && (millis() - lastUPDOWN) > UPDOWN_COOLDOWN/2) {
-      if(changeColour == 1) {
-        currentHue++;
-          if(currentHue > 255)
-            currentHue = 0;
-          currTemp = currentHue;
-      } else {
-        currentSat++;
-        if(currentSat > 255)
-          currentSat = 0;
-        currTemp = currentSat;
-      }
-      for(int i=0;i<6;i++)
-        colours[i] = CHSV(currentHue,currentSat,255);
-      lastUPDOWN = millis();
-    } else if(digitalRead(SW_DOWN_PIN) && (millis() - lastUPDOWN) > UPDOWN_COOLDOWN/2) {
-      if(changeColour == 1) {
-        currentHue--;
-        if(currentHue < 0)
-          currentHue = 255;
-        currTemp = currentHue;
-      } else {
-        currentSat--;
-        if(currentSat < 0)
-          currentSat = 255;
-        currTemp = currentSat;
-      }
-      for(int i=0;i<6;i++)
-        colours[i] = CHSV(currentHue,currentSat,255);
-      lastUPDOWN = millis();
-    }
-  }
-
-
-//  //Audio Spike - Did a double clap happen?
-//  if(lastStateATHRESH == LOW && currentStateATHRESH == HIGH && !changeColour && !isCycling && setTimeIndex == 0 && !transitionFlag && fadeFlag == 0) {        // Sound happens
-//    currentClap = millis();
-//    Serial.println("Audio Spike");
-//    if(currentClap - lastClap > CLAP_MIN_TIME && currentClap - lastClap < CLAP_MAX_TIME) {
-//      Serial.println("THE CLAPPER HAS HAPPENED"); //This is where you would call a function to display temperature
-//      cycleDisplay();
-//      //Print out humidity
-//      Serial.print("Humidity: ");
-//      Serial.print(si7006.readHumidity());
-//      Serial.println(" % rel.");
-//    
-//      //Print out Temperature °C
-//      Serial.print("Temperature: ");
-//      Serial.print(si7006.readTemperatureC());
-//      Serial.print(" ");
-//      Serial.print(char(176));
-//      Serial.println("C");
+//
+//  if(changeColour != 0) {
+//    if(digitalRead(SW_UP_PIN) && (millis() - lastUPDOWN) > UPDOWN_COOLDOWN/2) {
+//      if(changeColour == 1) {
+//        currentHue++;
+//          if(currentHue > 255)
+//            currentHue = 0;
+//          currTemp = currentHue;
+//      } else {
+//        currentSat++;
+//        if(currentSat > 255)
+//          currentSat = 0;
+//        currTemp = currentSat;
+//      }
+//      for(int i=0;i<6;i++)
+//        colours[i] = CHSV(currentHue,currentSat,255);
+//      lastUPDOWN = millis();
+//    } else if(digitalRead(SW_DOWN_PIN) && (millis() - lastUPDOWN) > UPDOWN_COOLDOWN/2) {
+//      if(changeColour == 1) {
+//        currentHue--;
+//        if(currentHue < 0)
+//          currentHue = 255;
+//        currTemp = currentHue;
+//      } else {
+//        currentSat--;
+//        if(currentSat < 0)
+//          currentSat = 255;
+//        currTemp = currentSat;
+//      }
+//      for(int i=0;i<6;i++)
+//        colours[i] = CHSV(currentHue,currentSat,255);
+//      lastUPDOWN = millis();
+//    }
+//  }
+//  if(setTimeIndex != 0) {
+//    if(digitalRead(SW_UP_PIN) && (millis() - lastUPDOWN) > UPDOWN_COOLDOWN) {
+//      if( setTimeIndex == 4 )
+//        now.incMonth();
+//      else if( setTimeIndex == 6 )
+//        now.incYear();
+//      else
+//        now = now + timeChange;
+//      printTime(); 
+//      lastUPDOWN = millis();
+//    } else if(digitalRead(SW_DOWN_PIN) && (millis() - lastUPDOWN) > UPDOWN_COOLDOWN) {
+//      if( setTimeIndex == 4 )
+//        now.decMonth();
+//      else if( setTimeIndex == 6 )
+//        now.decYear();
+//      else
+//        now = now - timeChange;
+//      printTime(); 
+//      lastUPDOWN = millis();
+//    }
+//    if(setTimeIndex == 1 || setTimeIndex == 4) {
+//      colours[DIN_L1] = CHSV(195,255,beatsin8(28,28,255));
+//      colours[DIN_L2] = CHSV(195,255,beatsin8(28,28,255));
+//      
+//    } else if(setTimeIndex == 2 || setTimeIndex == 5) {
+//      colours[DIN1] = CHSV(195,255,beatsin8(28,28,255));
+//      colours[DIN2] = CHSV(195,255,beatsin8(28,28,255));
+//    } else {
+//      colours[DIN_R1] = CHSV(195,255,beatsin8(28,28,255));
+//      colours[DIN_R2] = CHSV(195,255,beatsin8(28,28,255));
 //    }
 //
-//    lastClap = currentClap;
+//    
+//  } else {
+//
+//    now = MCP7940.now();
+//    if(now.second() != then.second()) {
+//      then = now;
+//      printTime();                                            // Display the current date/time    //
+
+      //TEMP INDICATOR version just stays in displayIndex=1 (Temperature)
+      displayIndex = 1;
+      currTemp = round( si7006.readTemperatureC() ); //Calibration looked pretty solid
+      updateColours();
+      updateLEDs();
+      delay(1000); //1s delay so it doesn't look like it's freaking out when at the border of 2 numbers
+//    }
+//    
 //  }
-  if(setTimeIndex != 0) {
-    if(digitalRead(SW_UP_PIN) && (millis() - lastUPDOWN) > UPDOWN_COOLDOWN) {
-      if( setTimeIndex == 4 )
-        now.incMonth();
-      else if( setTimeIndex == 6 )
-        now.incYear();
-      else
-        now = now + timeChange;
-      printTime(); 
-      lastUPDOWN = millis();
-    } else if(digitalRead(SW_DOWN_PIN) && (millis() - lastUPDOWN) > UPDOWN_COOLDOWN) {
-      if( setTimeIndex == 4 )
-        now.decMonth();
-      else if( setTimeIndex == 6 )
-        now.decYear();
-      else
-        now = now - timeChange;
-      printTime(); 
-      lastUPDOWN = millis();
-    }
-    if(setTimeIndex == 1 || setTimeIndex == 4) {
-      colours[DIN_L1] = CHSV(195,255,beatsin8(28,28,255));
-      colours[DIN_L2] = CHSV(195,255,beatsin8(28,28,255));
-      
-    } else if(setTimeIndex == 2 || setTimeIndex == 5) {
-      colours[DIN1] = CHSV(195,255,beatsin8(28,28,255));
-      colours[DIN2] = CHSV(195,255,beatsin8(28,28,255));
-    } else {
-      colours[DIN_R1] = CHSV(195,255,beatsin8(28,28,255));
-      colours[DIN_R2] = CHSV(195,255,beatsin8(28,28,255));
-    }
+// 
 
-    
-  } else {
-
-    now = MCP7940.now();
-    if(now.second() != then.second()) {
-      then = now;
-      printTime();                                            // Display the current date/time    //
-      currTemp = round( si7006.readTemperatureC() )-3; //IR gun measured 25 in room, 28 on board, si7006 reported 30
-      updateColours();
-    }
-    
-  }
-  displayIndex = 1;
-
-  //Fade handler
-  if(fadeFlag == 1) {
-    brightness -= 4;
-    if(brightness <= 0) {
-      brightness = 0;
-      fadeFlag++;
-      
-      displayIndex++;
-      if(displayIndex > 3) {
-        displayIndex = 0;
-        isCycling = 0;
-      } else {
-        isCycling = 1;
-        lastCycle = millis();
-      }
-      updateColours();
-        
-    }
-    FastLED.setBrightness(brightness);
-    
-  } else if(fadeFlag == 2) {
-    brightness += 4;
-    if(brightness >= MAX_BRIGHTNESS) {
-      brightness = MAX_BRIGHTNESS;
-      fadeFlag = 0;
-    }
-    FastLED.setBrightness(brightness);
-  }
-
-  if(isCycling) {
-    if( millis() - lastCycle >= CYCLE_PERIOD ) {
-      cycleDisplay();
-      isCycling = 0;
-    }
-  }
-
-  if(transitionFlag && transitionSlowdown++ > 2) {
-    transitionSlowdown = 0;
-    transitionValue++;
-    CRGB tempCol = blend(CHSV(76,255,255), defaultOrange, transitionValue);
-    for(int i=0;i<6;i++)
-      colours[i] = tempCol;
-
-    if(transitionValue == 128)
-      displayIndex = 0;
-    if(transitionValue >= 255) {
-       transitionValue = 0;
-       transitionFlag = 0;
-    }
-
-    
-  }
+//  //Fade handler
+//  if(fadeFlag == 1) {
+//    brightness -= 4;
+//    if(brightness <= 0) {
+//      brightness = 0;
+//      fadeFlag++;
+//      
+//      displayIndex++;
+//      if(displayIndex > 3) {
+//        displayIndex = 0;
+//        isCycling = 0;
+//      } else {
+//        isCycling = 1;
+//        lastCycle = millis();
+//      }
+//      updateColours();
+//        
+//    }
+//    FastLED.setBrightness(brightness);
+//    
+//  } else if(fadeFlag == 2) {
+//    brightness += 4;
+//    if(brightness >= MAX_BRIGHTNESS) {
+//      brightness = MAX_BRIGHTNESS;
+//      fadeFlag = 0;
+//    }
+//    FastLED.setBrightness(brightness);
+//  }
+//
+//  if(isCycling) {
+//    if( millis() - lastCycle >= CYCLE_PERIOD ) {
+//      cycleDisplay();
+//      isCycling = 0;
+//    }
+//  }
+//
+//  if(transitionFlag && transitionSlowdown++ > 2) {
+//    transitionSlowdown = 0;
+//    transitionValue++;
+//    CRGB tempCol = blend(CHSV(76,255,255), defaultOrange, transitionValue);
+//    for(int i=0;i<6;i++)
+//      colours[i] = tempCol;
+//
+//    if(transitionValue == 128)
+//      displayIndex = 0;
+//    if(transitionValue >= 255) {
+//       transitionValue = 0;
+//       transitionFlag = 0;
+//    }
+//
+//    
+//  }
   
 
 
@@ -394,7 +375,7 @@ void loop() {
   lastStateMODE = currentStateMODE;
   lastStateATHRESH = currentStateATHRESH;
 
-  updateLEDs();
+  
 
 }
 
@@ -494,7 +475,7 @@ void printTime() {
 //Kicks off the fade flag which begins cycling through temp/humid/date displays
 void cycleDisplay() {
   if(setTimeIndex == 0) { //DO NOT want to start cycling while you're in the middle of setting the time
-    currTemp = round( si7006.readTemperatureC() )-5; //IR gun measured 25 in room, 28 on board, si7006 reported 30
+    currTemp = round( si7006.readTemperatureC() ); //calibrated with temperature oven, seems accurate
     currHumid = round( si7006.readHumidity() );
     fadeFlag = 1;
   }
@@ -508,10 +489,10 @@ void updateColours() {
            
   } else if(displayIndex == 1) { //temp could adjust based on temp
     CRGB tempCol = CRGB::White;
-    if(currTemp >= 35)
-      tempCol = CHSV(14,255,255);
+    if(currTemp >= 35) //35 and over makes the indicator show as HOT
+      tempCol = CHSV(14,255,255); //Hot Orangey
     else //if(currTemp <= 20)
-      tempCol = CHSV(135,210,255);
+      tempCol = CHSV(135,210,255); //Cold Bluey
 //    else {
 //      switch(currTemp) {
 //        case 47:

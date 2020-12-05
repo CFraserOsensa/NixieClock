@@ -172,6 +172,8 @@ DateTime::DateTime (const __FlashStringHelper* date, const __FlashStringHelper* 
   memcpy_P(time_buff, time, 8);
   DateTime(date_buff, time_buff); // Call actual DateTime constructor
 } // of method DateTime()
+
+//NONOFFICIAL CFraser modifications to adjust month for next two methods
 //increase month by 1
 void	   DateTime::incMonth()
 {
