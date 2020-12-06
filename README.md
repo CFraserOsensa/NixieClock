@@ -20,6 +20,10 @@ Current thing you are "SETTING" will be highlited by a pulsing different colour 
 
 MODE button eventually will have different colour modes. As of now it just lets you change the default orange colour to whatever hue and saturation value you want
 
+# Libraries
+
+I just have a functional barebones understanding of github/arduino so I'm not sure how to properly package and credit libraries and their creators. I've included the zip folders which I used to install the libraries to the Arduino IDE. The one thing is I needed to modify the MCP7940 library to be able to increment/decrement the month and year which wasn't possible with the library I used (I think because those are two varying units of time), so the nonzipped files are what I replaced what was added when I installed the original ones. You'll need to replace the default files if you want to compile the NixieClock.ino sketch
+
 # TempIndicator
 
 Decided to modify the project to make a 2 digit temperature indicator. The code is currently just in a slapped together state built off the clock code where it just checks the temperature every second and displays it. It has a cold blue colour until the temperature goes over 35 where it'll switch to a warmer orange colour
